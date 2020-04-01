@@ -24,9 +24,11 @@
 	<!-- android -->
 	<platform name="android">
 		
-		<preference name="PLAY_SERVICES_VERSION" default="11.8.0"/>
-		
-		<framework src="com.google.android.gms:play-services-auth-api-phone:$PLAY_SERVICES_VERSION"/>
+		<!-- Fix for new Firebase - Plugin crashes on init -->
+	    	<framework src="com.google.android.gms:play-services-base:17.1.0"/>
+    		<framework src="com.google.android.gms:play-services-identity:17.0.0"/>
+    		<framework src="com.google.android.gms:play-services-auth:17.0.0"/>
+    		<framework src="com.google.android.gms:play-services-auth-api-phone:17.1.0"/>
 
 		<config-file target="res/xml/config.xml" parent="/*">
 			<feature name="SMSRetriever">
