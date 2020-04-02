@@ -1,7 +1,5 @@
 package com.andreszs.smsretriever;
 
-import android.Manifest;
-import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -22,7 +20,7 @@ import org.json.JSONException;
 import com.google.android.gms.auth.api.phone.SmsRetriever;
 import com.google.android.gms.auth.api.phone.SmsRetrieverClient;
 import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.CommonStatusCodes;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.tasks.OnFailureListener;
@@ -30,10 +28,8 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 
 /* AppSignatureHelper */
-import android.content.ContextWrapper;
 import android.content.pm.Signature;
 import android.util.Base64;
-import android.util.Log;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -55,11 +51,7 @@ public class SMSRetriever extends CordovaPlugin {
     public static final int NUM_HASHED_BYTES = 9;
 	public static final int NUM_BASE64_CHAR = 11;
 
-	private int googlePlayVersion = 0;
 	private int googlePlayVersionError = 0;
-	public static final int MIN_PLAY_SERVICES_VERSION = 12451000; //v10.2
-	public static final int ERROR_NO_PLAY_SERVICES_INSTALLED = 404;
-	public static final int ERROR_UPDATE_PLAY_SERVICES = 400;
 	/**
 	* @param cordova The context of the main Activity.
 	* @param webView The CordovaWebView Cordova is running in.
@@ -69,19 +61,20 @@ public class SMSRetriever extends CordovaPlugin {
 		Log.d(TAG, "initialize");
 		super.initialize(cordova, webView);
 
-		// Get current Play Version
-		final int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(cordova.getActivity());
-		if (ConnectionResult.SUCCESS == resultCode) {
-			googlePlayVersion = GooglePlayServicesUtil.GOOGLE_PLAY_SERVICES_VERSION_CODE;
-			Log.d(TAG, "Google Play Services version = " + googlePlayVersion);
-			if (googlePlayVersion < MIN_PLAY_SERVICES_VERSION) {
-				googlePlayVersionError = ERROR_UPDATE_PLAY_SERVICES;
+		// Get & Check current Play Version
+		GoogleApiAvailability googleApiAvailability = GoogleApiAvailability.getInstance();
+		int resultCode = googleApiAvailability.isGooglePlayServicesAvailable(cordova.getActivity());
+		switch (resultCode) {
+			case ConnectionResult.SERVICE_UPDATING:
+			case ConnectionResult.SERVICE_VERSION_UPDATE_REQUIRED:
+				Log.e(TAG, "Google Play services out of date");
+				googlePlayVersionError = ConnectionResult.SERVICE_VERSION_UPDATE_REQUIRED; //=2
+				break;
+			case ConnectionResult.SERVICE_MISSING:
+			case ConnectionResult.SERVICE_MISSING_PERMISSION:
+				Log.e(TAG, "Google Play Services not installed or disabled");
+				googlePlayVersionError = ConnectionResult.SERVICE_MISSING; //=1
 			}
-		} else {
-			Log.e(TAG, "Google Play Services not installed");
-			googlePlayVersionError = ERROR_NO_PLAY_SERVICES_INSTALLED;
-		}
-
 
 		// Get an instance of SmsRetrieverClient, used to start listening for a matching SMS message.
 		smsRetrieverClient = SmsRetriever.getClient(cordova.getActivity().getApplicationContext());
