@@ -21,6 +21,8 @@ import org.json.JSONException;
 
 import com.google.android.gms.auth.api.phone.SmsRetriever;
 import com.google.android.gms.auth.api.phone.SmsRetrieverClient;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.CommonStatusCodes;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.tasks.OnFailureListener;
@@ -53,6 +55,11 @@ public class SMSRetriever extends CordovaPlugin {
     public static final int NUM_HASHED_BYTES = 9;
 	public static final int NUM_BASE64_CHAR = 11;
 
+	private int googlePlayVersion = 0;
+	private int googlePlayVersionError = 0;
+	public static final int MIN_PLAY_SERVICES_VERSION = 12451000; //v10.2
+	public static final int ERROR_NO_PLAY_SERVICES_INSTALLED = 404;
+	public static final int ERROR_UPDATE_PLAY_SERVICES = 400;
 	/**
 	* @param cordova The context of the main Activity.
 	* @param webView The CordovaWebView Cordova is running in.
@@ -61,6 +68,20 @@ public class SMSRetriever extends CordovaPlugin {
 	public void initialize(CordovaInterface cordova, CordovaWebView webView) {
 		Log.d(TAG, "initialize");
 		super.initialize(cordova, webView);
+
+		// Get current Play Version
+		final int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(cordova.getActivity());
+		if (ConnectionResult.SUCCESS == resultCode) {
+			googlePlayVersion = GooglePlayServicesUtil.GOOGLE_PLAY_SERVICES_VERSION_CODE;
+			Log.d(TAG, "Google Play Services version = " + googlePlayVersion);
+			if (googlePlayVersion < MIN_PLAY_SERVICES_VERSION) {
+				googlePlayVersionError = ERROR_UPDATE_PLAY_SERVICES;
+			}
+		} else {
+			Log.e(TAG, "Google Play Services not installed");
+			googlePlayVersionError = ERROR_NO_PLAY_SERVICES_INSTALLED;
+		}
+
 
 		// Get an instance of SmsRetrieverClient, used to start listening for a matching SMS message.
 		smsRetrieverClient = SmsRetriever.getClient(cordova.getActivity().getApplicationContext());
@@ -95,6 +116,14 @@ public class SMSRetriever extends CordovaPlugin {
 
 	private void startWatch(final CallbackContext callbackContext) {
 		Log.d(TAG, ACTION_START_WATCH);
+
+		// Make sure GPS is installed and updated to supported version
+		if (googlePlayVersionError > 0) {
+			PluginResult result = new PluginResult(PluginResult.Status.ERROR, googlePlayVersionError);
+			callbackContext.sendPluginResult(result);
+			return;
+		}
+
 
 		// Starts SmsRetriever, which waits for ONE matching SMS message until timeout
 		// (5 minutes). The matching SMS message will be sent via a Broadcast Intent with
